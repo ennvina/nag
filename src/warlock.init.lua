@@ -637,6 +637,7 @@ aura_env.nag:addCast("soulfire", 6353, true) -- Soul Fire
 aura_env.nag:addCast("shadowbolt", 686, true) -- Shadow Bolt
 aura_env.nag:addCast("incinerate", 29722, true) -- Incinerate
 aura_env.nag:addCast("immolate", 348, false) -- Immolate
+aura_env.nag:addCast("corruption", 172, false) -- Corruption
 for key, castDef in pairs(aura_env.nag.casts) do
   if type(key) == "string" then
     aura_env.nag:log("Cast:", key, "Spell ID:", castDef.spellID, "Travels:", castDef.travels)
@@ -660,6 +661,7 @@ aura_env.nag:addLink("saf_in", { aura = "saf", cast = "incinerate" }) -- Priorit
 aura_env.nag:addLink("saf_sb", { aura = "saf", cast = "shadowbolt" }) -- Otherwise refresh Shadow and Flame by Shadow Bolt
 aura_env.nag:addLink("isf", { aura = "isf", cast = "soulfire" })
 aura_env.nag:addLink("immo", { aura = "immo", cast = "immolate" })
+aura_env.nag:addLink("corrup", { aura = "corrup", cast = "corruption" })
 for key, linkDef in pairs(aura_env.nag.links) do
   if type(key) == "string" then
     aura_env.nag:log("Link:", key, "Aura:", linkDef.aura and linkDef.aura.key or nil, "Cast:", linkDef.cast and linkDef.cast.key or nil, "Proc:", linkDef.proc and linkDef.proc.key or nil, "Cooldown:", linkDef.cd and linkDef.cd.key or nil)

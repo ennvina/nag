@@ -194,14 +194,17 @@ local function yolo(ev)
   local lastDecision = aura_env.nag.next -- Cache for future use in debugging
 
   local isfExpired, isffRefreshSpellID, isfRefreshCastTime = aura_env.nag:isAuraExpired("isf", "target", timeOfNextSpell)
-  local safExpired, safRefreshSpellID, safRefreshCastTime = aura_env.nag:isAuraExpired("saf", "target", timeOfNextSpell)
   local immoExpired, immoRefreshSpellID, immoRefreshCastTime = aura_env.nag:isAuraExpired("immo", "target", timeOfNextSpell)
+  local corrupExpired, corrupRefreshSpellID, corrupRefreshCastTime = aura_env.nag:isAuraExpired("corrup", "target", timeOfNextSpell)
+  local safExpired, safRefreshSpellID, safRefreshCastTime = aura_env.nag:isAuraExpired("saf", "target", timeOfNextSpell)
   if isfExpired then
     aura_env.nag:decide("aura:isf", isffRefreshSpellID, isfRefreshCastTime)
-  elseif safExpired then
-    aura_env.nag:decide("aura:saf", safRefreshSpellID, safRefreshCastTime)
   elseif immoExpired then
     aura_env.nag:decide("aura:immo", immoRefreshSpellID, immoRefreshCastTime)
+  elseif corrupExpired then
+    aura_env.nag:decide("aura:corrup", corrupRefreshSpellID, corrupRefreshCastTime)
+  elseif safExpired then
+    aura_env.nag:decide("aura:saf", safRefreshSpellID, safRefreshCastTime)
   else
     -- Use Shadow Bolt as filler
     aura_env.nag:decide("filler:shadowbolt", 686) -- Shadow Bolt = 686

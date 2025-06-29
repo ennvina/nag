@@ -1,5 +1,11 @@
 ## NAG Changelog
 
+#### v0.3 (2025-06-30)
+
+Features
+- Moved Immolation as higher priority than Shadow and Flame
+- Added Corruption to the rotation
+
 #### v0.2 (2025-06-30)
 
 The project now has its own Git repository

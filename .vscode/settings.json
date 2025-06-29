@@ -1,0 +1,67 @@
+{
+    "search.exclude": {
+        "**/wa/**": true
+    },
+    "files.exclude": {
+        "**/wa/**": true
+    },
+    "Lua.diagnostics.globals": [
+        // Lua global functions
+        "tinsert",
+        // Objects from this addon
+        "WeakAuras",
+        "aura_env",
+        // Objects from other addons
+//        "LibStub",
+        // Utility functions
+        "DevTools_Dump",
+        // WoW global objects
+//        "Enum",
+        // WoW UI helpers
+//         "CreateFrame",
+//         "GameFontNormalLarge",
+//         "WrapTextInColorCode",
+        // WoW game API
+        "C_Spell",
+        "C_UnitAuras",
+        "CombatLogGetCurrentEventInfo",
+        "GetSpellCooldown",
+        "GetSpellInfo",
+        "GetTime",
+        "InCombatLockdown",
+        "IsSpellKnownOrOverridesKnown",
+        "IsUsableSpell",
+        "UnitCanAttack",
+        "UnitExists",
+        "UnitGUID",
+        "UnitIsUnit",
+        // WoW constants
+        "WOW_PROJECT_ID",
+//        "WOW_PROJECT_BURNING_CRUSADE_CLASSIC",
+//        "WOW_PROJECT_CATACLYSM_CLASSIC",
+//        "WOW_PROJECT_CLASSIC",
+        "WOW_PROJECT_MISTS_CLASSIC",
+//        "WOW_PROJECT_WRATH_CLASSIC",
+    ],
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#545497",
+        "activityBar.activeBorder": "#851a34",
+        "activityBar.background": "#545497",
+        "activityBar.foreground": "#e7e7e7",
+        "activityBar.inactiveForeground": "#e7e7e799",
+        "activityBarBadge.background": "#3d2222",
+        "activityBarBadge.foreground": "#e7e7e7",
+        "sash.hoverBorder": "#545497",
+        "statusBar.background": "#424276",
+        "statusBar.foreground": "#e7e7e7",
+        "statusBarItem.hoverBackground": "#545497",
+        "statusBarItem.remoteBackground": "#424276",
+        "statusBarItem.remoteForeground": "#e7e7e7",
+        "titleBar.activeBackground": "#424276",
+        "titleBar.activeForeground": "#e7e7e7",
+        "titleBar.inactiveBackground": "#42427699",
+        "titleBar.inactiveForeground": "#e7e7e799",
+        "commandCenter.border": "#e7e7e799"
+    },
+    "peacock.color": "#424276"
+}

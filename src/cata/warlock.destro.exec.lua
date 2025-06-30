@@ -1,10 +1,9 @@
 ---- Intro is provided to trick the IDEs into accepting the code is a syntactically correct Lua function
----- THIS MUST BE REMOVED BEFORE INSERTION IN THE WEAKAURAS (so does the outro)
-local aura_env = aura_env or {}
-local function yolo(ev)
+---- THIS MUST BE REMOVED BEFORE INSERTION IN THE WEAKAURAS
+aura_env.cata.warlock.destro.exec =
 ----
 
--- function (ev) -- Remove this comment before insertion in the WeakAuras
+function (ev)
 
   -- The Next Action Guide (NAG) is a module that handles the logic of what spell to cast next.
   -- This is done in two steps:
@@ -137,59 +136,12 @@ local function yolo(ev)
 
   -- Step 2. Analyze the gathered information and decide what spell to cast next
 
-  local targetGUID = UnitGUID("target")
-
   local timeOfNextSpell = aura_env.nag:getTimeOfNextSpell()
-
-  local hasHotStreak = aura_env.hot_streak
 
   local gcdCD = select(2, GetSpellCooldown(61304))
   if gcdCD ~= 0 then
     aura_env.nag.last_known_gcd = gcdCD
   end
-
---[[
-  local needPyro = aura_env.nag:isAuraExpired("pyro", "target", timeOfNextSpell)
-
-  local pyroCastTime = hasHotStreak and 0 or 0.001 * select(4, GetSpellInfo(11366)) -- Pyro = 11366
-  local pyroTravelTime = select(1, aura_env.nag:pyroTravelTime("target"))
-  local missingPyroDOT = GetTime() > aura_env.pyro_until
-  local timeForPyroLand = timeOfNextSpell + pyroCastTime + pyroTravelTime
-  local pyroWillExpire = timeForPyroLand > aura_env.pyro_until
-  local isPyroBeingCastOnTarget = aura_env.pyros_cast[targetGUID] == 0 or (aura_env.pyros_cast[targetGUID] and GetTime() < (aura_env.pyros_cast[targetGUID]+3)) -- Max 3 sec before giving up
-  local needPyro = (missingPyroDOT or pyroWillExpire) and not isPyroBeingCastOnTarget
-]]
-
---[[
-  local needLivingBomb = aura_env.nag:isAuraExpired("living_bomb", "target", timeOfNextSpell)
-
-  local missingLivingBombDOT = GetTime() > aura_env.lb_until
-  local livingBombWillExpire = timeOfNextSpell > aura_env.lb_until
-  local needLivingBomb = missingLivingBombDOT or livingBombWillExpire
-]]
-
---[[
-  local mayCastFlameOrb = aura_env.nag:isCooldownReady("flame_orb", timeOfNextSpell)
-
-  local flameOrbStart, flameOrbCD = GetSpellCooldown(82731) -- 82731 = Flame Orb
-  local flameOrbIsReady = flameOrbCD == 0
-  local flameOrbWillBeReady = flameOrbCD == gcdCD or flameOrbStart+flameOrbCD <= timeOfNextSpell
-  local flameOrbTooSoon = GetTime() < aura_env.orb_last_cast+1 -- Security against queue lags, where the spell is not yet on cooldown (as seen by GetSpellCooldown) even though Flame Orb was cast right now
-  local mayCastFlameOrb = (flameOrbIsReady or flameOrbWillBeReady) and not flameOrbTooSoon
-]]
-
---[[
-  local mustCastScorch = aura_env.nag:isAuraExpired("cm", "target", timeOfNextSpell) and aura_env.nag:isAuraExpired("saf", "target", timeOfNextSpell)
-
-  local scorchCastTime = 0.001 * select(4, GetSpellInfo(2948)) -- Scorch = 2948
-  local criticalMassIsMissing = GetTime() > aura_env.cm_until and GetTime() > aura_env.sf_until
-  local criticalMassWillBeMissing = timeOfNextSpell+scorchCastTime > aura_env.cm_until and timeOfNextSpell+scorchCastTime > aura_env.sf_until
-  local isScorchBeingCastOnTarget = aura_env.casting and aura_env.casting.spellID == 2948 and aura_env.casting.guid == targetGUID -- Scorch = 2948
-  local isCriticalMassIncoming = isPyroBeingCastOnTarget or isScorchBeingCastOnTarget
-  local mustCastScorch = (criticalMassIsMissing or criticalMassWillBeMissing) and not isCriticalMassIncoming
-]]
-
-  local castTimeOfNextSpell = 0
 
   local lastDecision = aura_env.nag.next -- Cache for future use in debugging
 
@@ -201,7 +153,7 @@ local function yolo(ev)
     aura_env.nag:decide("aura:isf", isffRefreshSpellID, isfRefreshCastTime)
   elseif immoExpired then
     aura_env.nag:decide("aura:immo", immoRefreshSpellID, immoRefreshCastTime)
-  elseif corrupExpired then
+  elseif aura_env.config.use_corrup and corrupExpired then
     aura_env.nag:decide("aura:corrup", corrupRefreshSpellID, corrupRefreshCastTime)
   elseif safExpired then
     aura_env.nag:decide("aura:saf", safRefreshSpellID, safRefreshCastTime)
@@ -221,6 +173,7 @@ local function yolo(ev)
     end
   end
 
+  -- Debug decision changes
   if aura_env.config.debug or aura_env.config.trace then
     local newDecision = aura_env.nag.next
     if newDecision.what ~= lastDecision.what
@@ -236,103 +189,5 @@ local function yolo(ev)
     end
   end
 
-  --[[
-  if not InCombatLockdown() and needPyro then
-    aura_env.icon = 135808 -- Pyroblast
-    aura_env.icon_name = "Pyro"
-    castTimeOfNextSpell = pyroCastTime
-  elseif not InCombatLockdown() and mayCastFlameOrb then
-    aura_env.icon = 451164 -- Flame Orb
-    aura_env.icon_name = "Orb"
-  elseif mustCastScorch then
-    aura_env.icon = 135827 -- Scorch
-    aura_env.icon_name = "Scorch"
-    castTimeOfNextSpell = scorchCastTime
-  elseif hasHotStreak and aura_env.config.pyro_over_lb then
-    aura_env.icon = 135808 -- Pyroblast
-    aura_env.icon_name = "Pyro"
-  elseif needLivingBomb then
-    aura_env.icon = 236220 -- Living Bomb
-    aura_env.icon_name = "LB"
-  elseif hasHotStreak then
-    aura_env.icon = 135808 -- Pyroblast
-    aura_env.icon_name = "Pyro"
-  elseif mayCastFlameOrb then
-    aura_env.icon = 451164 -- Flame Orb
-    aura_env.icon_name = "Orb"
-  elseif aura_env.config.ffb_over_fb then
-    aura_env.icon = 236217 -- Frostfire Bolt
-    aura_env.icon_name = "FFB"
-    castTimeOfNextSpell = 0.001 * select(4, GetSpellInfo(44614)) -- Frostfire Bolt = 44614
-  elseif aura_env.config.check_hardcast_pyro and aura_env.may_hardcast_pyro() then
-    aura_env.icon = 135808 -- Pyroblast
-    aura_env.icon_name = "Pyro"
-    castTimeOfNextSpell = pyroCastTime
-  else
-    aura_env.icon = 135812 -- Fireball
-    aura_env.icon_name = "FB"
-    castTimeOfNextSpell = 0.001 * select(4, GetSpellInfo(133)) -- Fireball = 133
-  end
-
-  -- Override with Scorch if needed, to guarantee 100% uptime on Critical Mass
-  if InCombatLockdown() and aura_env.icon_name ~= "Scorch" and aura_env.icon_name ~= "Pyro" and not isCriticalMassIncoming then
-    local timeOfNextNextSpell = timeOfNextSpell + math.max(castTimeOfNextSpell, aura_env.nag.last_known_gcd)
-    if timeOfNextNextSpell+scorchCastTime > aura_env.cm_until and timeOfNextNextSpell+scorchCastTime > aura_env.sf_until then
-      aura_env.icon = 135827 -- Scorch
-      aura_env.icon_name = "Scorch"
-    end
-  end
-
-  -- Replace Fireball with Scorch if it allows to refresh Living Bomb slightly sooner
-  if aura_env.config.scorch_more_often and (aura_env.icon_name == "FB" or aura_env.icon_name == "FFB") then
-    if aura_env.lb_until < timeOfNextSpell+scorchCastTime+0.25 then -- Add 0.25 to account for delay and player reactivity, and threshold before we lose too much damage
-      aura_env.icon = 135827 -- Scorch
-      aura_env.icon_name = "Scorch"
-    end
-  end
-
-  if aura_env.config.trace then
-    DevTools_Dump(
-      {
-        decision = {
-          general = {
-            targetGUID=targetGUID,
-            timeOfNextSpell=timeOfNextSpell,
-            hasHotStreak=hasHotStreak,
-            GetTime = GetTime(),
-          },
-
-          pyro = {
-            pyroCastTime=pyroCastTime,
-            pyroTravelTime=pyroTravelTime,
-            missingPyroDOT=missingPyroDOT,
-            timeForPyroLand=timeForPyroLand,
-            pyroWillExpire=pyroWillExpire,
-            isPyroBeingCastOnTarget=isPyroBeingCastOnTarget,
-            needPyro=needPyro,
-            pyroExpiresAt = aura_env.pyro_until,
-          },
-
-          lb = {
-            missingLivingBombDOT=missingLivingBombDOT,
-            livingBombWillExpire=livingBombWillExpire,
-            needLivingBomb=needLivingBomb,
-            lbExpiresAt = aura_env.lb_until,
-          },
-
-          icon = {
-            id = aura_env.icon,
-            spell = aura_env.icon_name
-          }
-        }
-      }
-    )
-  end
-]]
-
   return true
 end
-
----- Outro is provided only to trick the IDEs into accepting the code is actually used
----- THIS MUST BE REMOVED BEFORE INSERTION IN THE WEAKAURAS (so does the intro)
-yolo({});

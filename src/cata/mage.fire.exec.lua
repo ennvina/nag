@@ -1,10 +1,9 @@
 ---- Intro is provided to trick the IDEs into accepting the code is a syntactically correct Lua function
----- THIS MUST BE REMOVED BEFORE INSERTION IN THE WEAKAURAS (so does the outro)
-local aura_env = aura_env or {}
-local function yolo(ev)
+---- THIS MUST BE REMOVED BEFORE INSERTION IN THE WEAKAURAS
+aura_env.cata.mage.fire.exec =
 ----
 
--- function (ev) -- Remove this comment before insertion in the WeakAuras
+function (ev)
 
   aura_env.enabled = UnitExists("target") and UnitCanAttack("player", "target")
   local current_target = UnitGUID("target")
@@ -329,7 +328,3 @@ local function yolo(ev)
   
   return true
 end
-
----- Outro is provided only to trick the IDEs into accepting the code is actually used
----- THIS MUST BE REMOVED BEFORE INSERTION IN THE WEAKAURAS (so does the intro)
-yolo({});

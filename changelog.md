@@ -1,5 +1,14 @@
 ## NAG Changelog
 
+#### v0.4 (2025-06-30)
+
+Features
+- Added option to include Corruption in the rotation
+- Cleaned up Warlock code, now that Mage code is here
+
+The temporary code was kept in case Mage code was needed sometime
+But since Mage code is in the repository now, it can be cleaned up
+
 #### v0.3 (2025-06-30)
 
 Features

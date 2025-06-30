@@ -89,33 +89,6 @@ function aura_env.nag:error(...)
   debugPrint("Error", "ERROR_COLOR", ...)
 end
 
---[[
-function aura_env.nag:dotDuration(spellID)
-  local duration = (GetSpellDescription(spellID) or ""):match("over (%d*.?%d*) sec")
-  if duration ~= "" then
-    return tonumber(duration)
-  else
-    return nil
-  end
-end
-
-function aura_env.nag:findDebuff(self, spellID, unit)
-  if not unit then return nil end
-  
-  local i = 1
-  local name, icon, count, dispelType, duration, expirationTime, source, isStealable, nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, nameplateShowAll, timeMod = UnitDebuff(unit, i, "PLAYER")
-  while name do
-    if spellId == spellID then
-      return name, icon, count, dispelType, duration, expirationTime, source, isStealable, nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, nameplateShowAll, timeMod
-    end
-    i = i+1
-    name, icon, count, dispelType, duration, expirationTime, source, isStealable, nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, nameplateShowAll, timeMod = UnitDebuff(unit, i, "PLAYER")
-  end
-  
-  return nil
-end
-]]
-
 
 -- [[ Links ]]
 

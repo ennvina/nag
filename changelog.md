@@ -3,8 +3,10 @@
 #### v0.3 (2025-06-30)
 
 Features
+- Set the NAG group as a separate WeakAuras, without class-specific NAGs
+- Added Cataclysm Mage NAGs for posterity
 - Moved Immolation as higher priority than Shadow and Flame
-- Added Corruption to the rotation
+- Added Corruption to the Warlock rotation
 
 #### v0.2 (2025-06-30)
 

@@ -35,6 +35,7 @@
         "UnitExists",
         "UnitGUID",
         "UnitIsUnit",
+        "UnitPower",
         // WoW constants
         "WOW_PROJECT_ID",
 //        "WOW_PROJECT_BURNING_CRUSADE_CLASSIC",

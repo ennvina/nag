@@ -1,5 +1,10 @@
 ## NAG Changelog
 
+#### v0.5 (2025-07-07)
+
+Features
+- First implementation of Destruction Warlock for Mists of Pandaria
+
 #### v0.4 (2025-06-30)
 
 Features

@@ -1,10 +1,13 @@
 ## NAG Changelog
 
-#### v0.8 (2025-07-xx)
+#### v0.8 (2025-07-07)
 
 Features
 - Add logic to prefer casting Chaos Bolt or Shadowburn on burst windows
 - Currently, the 'burst window' is limited to Dark Soul: Instability
+- Fix an issue of interrupted spell casts not detected as interrupted
+
+The latter issue is most likely a game bug that sometimes does not fire events
 
 #### v0.7 (2025-07-07)
 

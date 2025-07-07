@@ -704,7 +704,7 @@ end
 
 ]]
 
-function nag_mixin:updateTarget()
+local function updateTarget(self)
   self.enabled = UnitExists("target") and UnitCanAttack("player", "target")
   local current_target = UnitGUID("target")
   if current_target ~= self.current_target then
@@ -717,7 +717,7 @@ function nag_mixin:updateTarget()
   end
 end
 
-function nag_mixin:analyzeCLEU()
+local function analyzeCLEU(self)
   local _, event, _, sourceGUID, _, _, _, destGUID = CombatLogGetCurrentEventInfo()
   local spellID, spellName, spellSchool = select(12, CombatLogGetCurrentEventInfo()) -- For SPELL_*
 
@@ -725,13 +725,13 @@ function nag_mixin:analyzeCLEU()
     return false
   end
 
-  self:trace(event, 'from:'..(sourceGUID or 'no_src'), 'to:'..(destGUID or 'no_dst'), spellID, spellName)
-
   local cleuUsed = false
 
   local current_target = self.current_target
 
   local fromPlayer = sourceGUID == UnitGUID("player") -- Events originated by player only
+
+  self:trace(event, 'from:'..(sourceGUID or 'no_src'), 'to:'..(destGUID or 'no_dst'), spellID, spellName)
 
   -- SPELL_CAST_START, SPELL_CAST_SUCCESS, SPELL_CAST_FAILED, SPELL_INTERRUPT are used to track which spell is being cast
   if fromPlayer and event == "SPELL_CAST_START" then
@@ -825,16 +825,47 @@ function nag_mixin:analyzeCLEU()
   return cleuUsed
 end
 
-function nag_mixin:analyzeEvent(event)
+local function analyzeUnitSpellcastCancel(self, event, ...)
+  local unit, castGUID, spellID = ...
+  local eventUsed = false
+
+  if not UnitIsUnit(unit, "player") then
+    return false -- We only care about player casts
+  end
+
+  self:trace(event, 'castGUID:'..(castGUID or 'no_castGUID'), 'spellID:'..(spellID or 'no_spellID'))
+
+  if self.casting and self.casting.spellID == spellID then
+    -- If the spell being cast is the same as the one we are tracking, we can clear it
+    self:setCasting() -- Casting ended, either clear it ot set it to GCD
+    eventUsed = true
+  end
+
+  local cast = self.casts[spellID]
+  if cast and cast.casting_on then
+    cast.sent[cast.casting_on] = nil
+    cast.casting_on = nil
+    eventUsed = true
+  end
+
+  return eventUsed
+end
+
+function nag_mixin:analyzeEvent(event, ...)
   -- Step 1.1 Align with the new target, if it has changed
   -- Always look into it, even if the event that triggered this function is not "PLAYER_TARGET_CHANGED"
   -- Target changes are too important to ignore, and should be caught as soon as possible
-  self:updateTarget()
+  updateTarget(self)
 
   -- Step 1.2 Analyze CLEU we just received, if it was a CLEU
   if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-    local cleuUsed = self:analyzeCLEU()
+    local cleuUsed = analyzeCLEU(self)
     if not cleuUsed then -- Stop now if there is nothing new, to save resources
+      return false
+    end
+  elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_INTERRUPTED" then
+    local eventUsed = analyzeUnitSpellcastCancel(self, event, ...)
+    if not eventUsed then -- Stop now if there is nothing new, to save resources
       return false
     end
   end

@@ -3,7 +3,7 @@
 aura_env.mop.warlock.destro.exec =
 ----
 
-function (ev)
+function (ev, ...)
 
   -- The Next Action Guide (NAG) is a module that handles the logic of what spell to cast next
   -- This is done in two steps:
@@ -13,7 +13,7 @@ function (ev)
 
   -- Step 1. Gather information about the current state of the game
 
-  local keepGoing = nag:analyzeEvent(ev)
+  local keepGoing = nag:analyzeEvent(ev, ...)
   if not keepGoing then
     return nag.enabled -- If the event is not relevant, stop here
   end

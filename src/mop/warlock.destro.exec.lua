@@ -35,8 +35,11 @@ function (ev, ...)
   -- @TODO define what is a good burst window for Chaos Bolt and Shadowburn using the prefer_cb_on_burst option
   local isBurstWindow = not dsi.expired -- For now make it simple: burst window = Dark Soul: Instability
 
+  if not InCombatLockdown() and not nag.casting then
+    nag:decide("opener:incinerate", 29722) -- Incinerate = 29722
+
   -- Cast / refresh Immolate first
-  if immo.expired then
+  elseif immo.expired then
     nag:decide("aura:immo", immo.spellID, immo.castTime)
 
   -- Cast Curse of the Elements if missing and no one else applies an equivalent debuff
@@ -83,7 +86,7 @@ function (ev, ...)
   -- Look into the future, and adjust the present if the future does not look bright enough
   local timeOfNextNextSpell = timeOfNextSpell + math.max(nag.next.time, nag.last_known_gcd)
   -- Priority: refresh Immolate at all costs
-  if not immo.expired and nag.next.what ~= "aura:immo" then
+  if InCombatLockdown() and not immo.expired and nag.next.what ~= "aura:immo" then
     -- Try again with Immolate in the future
     immo = nag:isAuraExpired("immo", "target", timeOfNextNextSpell)
     if immo.expired then

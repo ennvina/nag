@@ -145,18 +145,18 @@ function (ev)
 
   local lastDecision = aura_env.nag.next -- Cache for future use in debugging
 
-  local isfExpired, isffRefreshSpellID, isfRefreshCastTime = aura_env.nag:isAuraExpired("isf", "target", timeOfNextSpell)
-  local immoExpired, immoRefreshSpellID, immoRefreshCastTime = aura_env.nag:isAuraExpired("immo", "target", timeOfNextSpell)
-  local corrupExpired, corrupRefreshSpellID, corrupRefreshCastTime = aura_env.nag:isAuraExpired("corrup", "target", timeOfNextSpell)
-  local safExpired, safRefreshSpellID, safRefreshCastTime = aura_env.nag:isAuraExpired("saf", "target", timeOfNextSpell)
-  if isfExpired then
-    aura_env.nag:decide("aura:isf", isffRefreshSpellID, isfRefreshCastTime)
-  elseif immoExpired then
-    aura_env.nag:decide("aura:immo", immoRefreshSpellID, immoRefreshCastTime)
-  elseif aura_env.config.use_corrup and corrupExpired then
-    aura_env.nag:decide("aura:corrup", corrupRefreshSpellID, corrupRefreshCastTime)
-  elseif safExpired then
-    aura_env.nag:decide("aura:saf", safRefreshSpellID, safRefreshCastTime)
+  local isf = aura_env.nag:isAuraExpired("isf", "target", timeOfNextSpell)
+  local immo = aura_env.nag:isAuraExpired("immo", "target", timeOfNextSpell)
+  local corrup = aura_env.nag:isAuraExpired("corrup", "target", timeOfNextSpell)
+  local saf = aura_env.nag:isAuraExpired("saf", "target", timeOfNextSpell)
+  if isf.expired then
+    aura_env.nag:decide("aura:isf", isf.spellID, isf.castTime)
+  elseif immo.expired then
+    aura_env.nag:decide("aura:immo", immo.spellID, immo.castTime)
+  elseif aura_env.config.use_corrup and corrup.expired then
+    aura_env.nag:decide("aura:corrup", corrup.spellID, corrup.castTime)
+  elseif saf.expired then
+    aura_env.nag:decide("aura:saf", saf.spellID, saf.castTime)
   else
     -- Use Shadow Bolt as filler
     aura_env.nag:decide("filler:shadowbolt", 686) -- Shadow Bolt = 686

@@ -45,6 +45,12 @@ end
 -- Decision making
 
 function nag_mixin:decide(what, spellID, castTime)
+  if not spellID or spellID == 0 then
+    self:error("Cannot apply decision " .. what .. " with spellID " .. tostring(spellID))
+    self.enabled = false
+    return 0
+  end
+
   local spellInfo = C_Spell.GetSpellInfo(spellID)
 
   if not spellInfo then
@@ -70,6 +76,8 @@ function nag_mixin:decide(what, spellID, castTime)
     name = spellInfo.name,
     time = castTime
   }
+
+  self.enabled = true
 
   return castTime
 end
@@ -315,14 +323,14 @@ function nag_mixin:isAuraExpired(key, unit, when)
   local aura = self.auras[key]
   if not aura then
     self:warn("Aura " .. key .. " not found")
-    return false, nil, nil
+    return { expired = false, spellID = 0, castTime = 0 }
   end
 
   local missingAura = GetTime() > aura.expiration -- This one is probably useless @TODO clean it up
   local auraWillBeThere = when <= aura.expiration
   local isBeingCastOnUnit = false
-  local suggestionRefreshSpellID = nil
-  local suggestionCastTime = nil
+  local refreshSpellID = nil
+  local refreshCastTime = nil
 
   local castLinks = aura.links.cast
   if castLinks then
@@ -332,9 +340,9 @@ function nag_mixin:isAuraExpired(key, unit, when)
       if IsSpellKnownOrOverridesKnown(cast.spellID) then
         local auraWillBeThereByCast, isBeingCastOnUnitByCast, castTime = self:getAuraCastInfo(aura, cast, unit, when)
         if (missingAura or not auraWillBeThereByCast) and not isBeingCastOnUnitByCast then
-          if not suggestionRefreshSpellID then
-            suggestionRefreshSpellID = cast.spellID
-            suggestionCastTime = castTime
+          if not refreshSpellID then
+            refreshSpellID = cast.spellID
+            refreshCastTime = castTime
           end
         end
         auraWillBeThere = auraWillBeThere or auraWillBeThereByCast
@@ -343,13 +351,8 @@ function nag_mixin:isAuraExpired(key, unit, when)
     end
   end
 
-  -- if aura_env.config.debug or aura_env.config.trace then
-  --   if ((missingAura or not auraWillBeThere) and not isBeingCastOnUnit) == true then
-  --     self:log("Aura:", key, "Unit:", unit, "When:", when, "Missing:", missingAura, "BeThere:", auraWillBeThere, "Casting:", isBeingCastOnUnit, "SuggSpellID:", suggestionRefreshSpellID, "SuggCastTime:", suggestionCastTime)
-  --   end
-  -- end
-
-  return (missingAura or not auraWillBeThere) and not isBeingCastOnUnit, suggestionRefreshSpellID, suggestionCastTime
+  local auraExpired = (missingAura or not auraWillBeThere) and not isBeingCastOnUnit
+  return { expired = auraExpired, spellID = refreshSpellID or 0, castTime = refreshCastTime or 0 }
 end
 
 local function fetchTargetDebuffs(self)
@@ -574,25 +577,25 @@ function nag_mixin:canCast(key, when)
   local cast = self.casts[key]
   if not cast then
     self:warn("Cast " .. key .. " not found")
-    return false
+    return { usable = false }
   end
 
   -- Check if the spell is known
   local usable = IsSpellKnownOrOverridesKnown(cast.spellID)
   if not usable then
-    return false
+    return { usable = false }
   end
 
   -- Check if the spell is being cast right now
   local isUsable, noMana = C_Spell.IsSpellUsable(cast.spellID)
   if not isUsable then
-    return false
+    return { usable = false }
   end
 
   -- Check if the spell depends on a cooldown
   for _, link in ipairs(cast.links.cd or {}) do
     if link and not self:isCooldownReady(link.key, when) then
-      return false
+      return { usable = false }
     end
   end
 
@@ -616,14 +619,14 @@ function nag_mixin:canCast(key, when)
           -- If cost types match, there is a risk that the currently casting spell will make the next spell unusable
           local futurePower = currentPower - castingCost.cost
           if futurePower < cost.cost then
-            return false
+            return { usable = false }
           end
         end
       end
     end
   end
 
-  return true, cast.spellID, self:getCastTime(cast, when)
+  return { usable = true, spellID = cast.spellID, castTime = self:getCastTime(cast, when) }
 end
 
 -- [[ Cooldowns ]]

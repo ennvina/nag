@@ -261,7 +261,7 @@ function aura_env.nag:isAuraExpired(key, unit, when)
   local aura = self.auras[key]
   if not aura then
     self:warn("Aura " .. key .. " not found")
-    return false, nil, nil
+    return { expired = false, spellID = nil, castTime = nil }
   end
 
   local missingAura = GetTime() > aura.expiration -- This one is probably useless @TODO clean it up
@@ -295,7 +295,7 @@ function aura_env.nag:isAuraExpired(key, unit, when)
   --   end
   -- end
 
-  return (missingAura or not auraWillBeThere) and not isBeingCastOnUnit, suggestionRefreshSpellID, suggestionCastTime
+  return { expired = (missingAura or not auraWillBeThere) and not isBeingCastOnUnit, spellID = suggestionRefreshSpellID, castTime = suggestionCastTime }
 end
 
 function aura_env.nag:fetchTargetDebuffs()

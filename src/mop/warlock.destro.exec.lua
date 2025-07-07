@@ -22,34 +22,34 @@ function (ev)
 
   local timeOfNextSpell, lastDecision = nag:preDecide()
 
-  local immoExpired, immoRefreshSpellID, immoRefreshCastTime = nag:isAuraExpired("immo", "target", timeOfNextSpell)
-  local coeExpired, coeRefreshSpellID, coeRefreshCastTime = nag:isAuraExpired("coe", "target", timeOfNextSpell)
-  local shadowburnUsable, shadowburnSpellID, shadowburnCastTime = nag:canCast("shadowburn", timeOfNextSpell)
-  local chaosBoltUsable, chaosBoltSpellID, chaosBoltCastTime = nag:canCast("chaos_bolt", timeOfNextSpell)
-  local conflagUsable, conflagSpellID, conflagCastTime = nag:canCast("conflagrate", timeOfNextSpell)
-  if immoExpired then
-    nag:decide("aura:immo", immoRefreshSpellID, immoRefreshCastTime)
-  elseif coeExpired then
-    nag:decide("aura:coe", coeRefreshSpellID, coeRefreshCastTime)
-  elseif conflagUsable then
-    nag:decide("cast:conflagrate", conflagSpellID, conflagCastTime)
-  elseif shadowburnUsable then
-    nag:decide("cast:shadowburn", shadowburnSpellID, shadowburnCastTime)
-  elseif chaosBoltUsable then
-    nag:decide("cast:chaos_bolt", chaosBoltSpellID, chaosBoltCastTime)
+  local immo = nag:isAuraExpired("immo", "target", timeOfNextSpell)
+  local coe = nag:isAuraExpired("coe", "target", timeOfNextSpell)
+  local shadowburn = nag:canCast("shadowburn", timeOfNextSpell)
+  local chaosBolt = nag:canCast("chaos_bolt", timeOfNextSpell)
+  local conflag = nag:canCast("conflagrate", timeOfNextSpell)
+  if immo.expired then
+    nag:decide("aura:immo", immo.spellID, immo.castTime)
+  elseif coe.expired then
+    nag:decide("aura:coe", coe.spellID, coe.castTime)
+  elseif conflag.usable then
+    nag:decide("cast:conflagrate", conflag.spellID, conflag.castTime)
+  elseif shadowburn.usable then
+    nag:decide("cast:shadowburn", shadowburn.spellID, shadowburn.castTime)
+  elseif chaosBolt.usable then
+    nag:decide("cast:chaos_bolt", chaosBolt.spellID, chaosBolt.castTime)
   else
     -- Use Incinerate as filler
     nag:decide("filler:incinerate", 29722) -- Incinerate = 29722
   end
 
-  -- Look into the future, and ajust the present if the future does not look bright enough
+  -- Look into the future, and adjust the present if the future does not look bright enough
   local timeOfNextNextSpell = timeOfNextSpell + math.max(nag.next.time, nag.last_known_gcd)
   -- Priority: refresh Immolate at all costs
-  if not immoExpired and nag.next.what ~= "aura:immo" then
+  if not immo.expired and nag.next.what ~= "aura:immo" then
     -- Try again with Immolate in the future
-    immoExpired, immoRefreshSpellID, immoRefreshCastTime = nag:isAuraExpired("immo", "target", timeOfNextNextSpell)
-    if immoExpired then
-      nag:decide("aura:immo:future", immoRefreshSpellID, immoRefreshCastTime)
+    immo = nag:isAuraExpired("immo", "target", timeOfNextNextSpell)
+    if immo.expired then
+      nag:decide("aura:immo:future", immo.spellID, immo.castTime)
     end
   end
 

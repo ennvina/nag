@@ -451,6 +451,10 @@ function nag_mixin:setCasting(spellID, guid, startTime, endTime)
     spellID, startTime, endTime = 61304, gcdStart, gcdStart + gcdDuration
   end
 
+  if spellID ~= 61304 and (aura_env.config.debug or aura_env.config.trace) then
+    self:log("Casting:", spellID, C_Spell.GetSpellInfo(spellID).name)
+  end
+
   self.casting = { spellID = spellID, guid = guid, startTime = startTime, endTime = endTime }
 end
 

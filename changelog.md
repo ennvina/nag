@@ -1,5 +1,10 @@
 ## NAG Changelog
 
+#### v0.7 (2025-07-07)
+
+Features
+- Move the cleu logic to init.lua instead of exec.lua
+
 #### v0.6 (2025-07-07)
 
 Features

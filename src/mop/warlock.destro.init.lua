@@ -664,6 +664,127 @@ function nag_mixin:updateTarget()
   end
 end
 
+function nag_mixin:analyzeCLEU()
+  local _, event, _, sourceGUID, _, _, _, destGUID = CombatLogGetCurrentEventInfo()
+  local spellID, spellName, spellSchool = select(12, CombatLogGetCurrentEventInfo()) -- For SPELL_*
+
+  if not event then -- Ignore non-events
+    return false
+  end
+
+  self:trace(event, 'from:'..(sourceGUID or 'no_src'), 'to:'..(destGUID or 'no_dst'), spellID, spellName)
+
+  local cleuUsed = false
+
+  local current_target = self.current_target
+
+  local fromPlayer = sourceGUID == UnitGUID("player") -- Events originated by player only
+
+  -- SPELL_CAST_START, SPELL_CAST_SUCCESS, SPELL_CAST_FAILED, SPELL_INTERRUPT are used to track which spell is being cast
+  if fromPlayer and event == "SPELL_CAST_START" then
+    local startTime, endTime = GetTime(), GetTime()+0.001*select(4, GetSpellInfo(spellID))
+    self:setCasting(spellID, current_target, startTime, endTime) -- Assume _CAST_START is always done on target
+    cleuUsed = true
+    if aura_env.config.trace then
+      DevTools_Dump({ casting = self.casting })
+    end
+  elseif fromPlayer and (event == "SPELL_CAST_SUCCESS" or event == "SPELL_CAST_FAILED" or event == "SPELL_INTERRUPT") then
+    self:setCasting() -- Casting ended, either clear it ot set it to GCD
+    cleuUsed = true
+  end
+
+  -- SPELL_CAST_SUCCESS is used to track last time a cooldown was used
+  local cd = self.cd[spellID]
+  if cd and fromPlayer then
+    if event == "SPELL_CAST_SUCCESS" then
+      cd.cast = GetTime() -- Update last cast time
+      if aura_env.config.trace then
+        DevTools_Dump({ cooldown = { key = cd.key, last_cast = cd.cast }})
+      end
+    end
+  end
+
+   -- SPELL_AURA_APPLIED, SPELL_AURA_REFRESH, SPELL_AURA_REMOVED are used to track buffs and debuffs
+   local aura = self.auras[spellID]
+   if aura and (not aura.selfOnly or fromPlayer) then
+     if aura.helpful or current_target == destGUID then
+       if event == "SPELL_AURA_APPLIED" or event == "SPELL_AURA_REFRESH" then
+         aura.expiration = self:auraExpiration(aura.key)
+         cleuUsed = true
+       elseif event == "SPELL_AURA_REMOVED" then
+         aura.expiration = 0
+         cleuUsed = true
+       end
+       if aura_env.config.trace then
+         DevTools_Dump({ aura = { key = aura.key, expiration = aura.expiration, remaining = aura.expiration >= GetTime() and (aura.expiration-GetTime()) or -1 } })
+       end
+     end
+   end
+
+  -- SPELL_CAST_START, SPELL_CAST_SUCCESS, SPELL_CAST_FAILED, SPELL_INTERRUPT, SPELL_DAMAGE, SPELL_MISSED are used to track casts
+  local cast = self.casts[spellID]
+  if cast and fromPlayer then
+    if event == "SPELL_CAST_START" then
+      if current_target then
+        cast.casting_on = current_target -- Assume casting on target
+        cast.sent[current_target] = 0
+        cleuUsed = true
+      end
+    elseif event == "SPELL_CAST_SUCCESS" then
+      cast.sent[destGUID] = GetTime()
+      cast.casting_on = nil -- Please test if overwrite in case of e.g. double pyro
+      cleuUsed = true
+    elseif event == "SPELL_CAST_FAILED" or event == "SPELL_INTERRUPT" then
+      if cast.casting_on then
+        cast.sent[cast.casting_on] = nil
+        cast.casting_on = nil -- Please test if overwrite in case of e.g. double pyro
+        cleuUsed = true
+      end
+    elseif event == "SPELL_DAMAGE" or event == "SPELL_MISSED" then
+      cast.sent[destGUID] = nil
+      cleuUsed = true
+    end
+    if aura_env.config.trace then
+      DevTools_Dump({ cast = { key = cast.key, casting_on = cast.casting_on, sent = cast.sent } })
+    end
+  end
+
+  -- SPELL_AURA_APPLIED, SPELL_AURA_REFRESH, SPELL_AURA_REMOVED are used to track procs
+  -- This is just a simpler version of buffs/debuffs
+  local proc = self.procs[spellID]
+  if proc and fromPlayer then
+    if event == "SPELL_AURA_APPLIED" or event == "SPELL_AURA_REFRESH" then
+      proc.active = true
+      cleuUsed = true
+    elseif event == "SPELL_AURA_REMOVED" then
+      proc.active = false
+      cleuUsed = true
+    end
+    if aura_env.config.trace then
+      DevTools_Dump({ proc = { key = proc.key, active = proc.active } })
+    end
+  end
+
+  return cleuUsed
+end
+
+function nag_mixin:analyzeEvent(event)
+  -- Step 1.1 Align with the new target, if it has changed
+  -- Always look into it, even if the event that triggered this function is not "PLAYER_TARGET_CHANGED"
+  -- Target changes are too important to ignore, and should be caught as soon as possible
+  self:updateTarget()
+
+  -- Step 1.2 Analyze CLEU we just received, if it was a CLEU
+  if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+    local cleuUsed = self:analyzeCLEU()
+    if not cleuUsed then -- Stop now if there is nothing new, to save resources
+      return false
+    end
+  end
+
+  return self.enabled
+end
+
 --[[
 
     Warlock-specific init

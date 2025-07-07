@@ -5,131 +5,20 @@ aura_env.mop.warlock.destro.exec =
 
 function (ev)
 
-  -- The Next Action Guide (NAG) is a module that handles the logic of what spell to cast next.
+  -- The Next Action Guide (NAG) is a module that handles the logic of what spell to cast next
   -- This is done in two steps:
-  -- 1. Gather information about the current state of the game, such as cooldowns, buffs, debuffs, etc.
-  -- 2. Analyze the gathered information and decide what spell to cast next.
+  -- 1. Gather information about the current state of the game, such as cooldowns, buffs, etc.
+  -- 2. Analyze gathered information and decide what spell to cast next
   local nag = aura_env.nag
 
   -- Step 1. Gather information about the current state of the game
 
-  -- Step 1.1 Align with the new target, if it has changed
-  -- Always look into it, even if the event that triggered this function is not "PLAYER_TARGET_CHANGED"
-  -- Target changes are too important to ignore, and should be caught as soon as possible
-  nag:updateTarget()
-  local current_target = nag.current_target
-
-  -- Step 1.2 Analyze CLEU we just received, if it was a CLEU
-  if ev == "COMBAT_LOG_EVENT_UNFILTERED" then
-    local _, event, _, sourceGUID, _, _, _, destGUID = CombatLogGetCurrentEventInfo()
-    local spellID, spellName, spellSchool = select(12, CombatLogGetCurrentEventInfo()) -- For SPELL_*
-
-    if not event then -- Ignore non-events
-      return nag.enabled
-    end
-
-    nag:trace(event, 'from:'..(sourceGUID or 'no_src'), 'to:'..(destGUID or 'no_dst'), spellID, spellName)
-
-    local cleuUsed = false
-
-    local fromPlayer = sourceGUID == UnitGUID("player") -- Events originated by player only
-
-    -- SPELL_CAST_START, SPELL_CAST_SUCCESS, SPELL_CAST_FAILED, SPELL_INTERRUPT are used to track which spell is being cast
-    if fromPlayer and event == "SPELL_CAST_START" then
-      local startTime, endTime = GetTime(), GetTime()+0.001*select(4, GetSpellInfo(spellID))
-      nag:setCasting(spellID, current_target, startTime, endTime) -- Assume _CAST_START is always done on target
-      cleuUsed = true
-      if aura_env.config.trace then
-        DevTools_Dump({ casting = nag.casting })
-      end
-    elseif fromPlayer and (event == "SPELL_CAST_SUCCESS" or event == "SPELL_CAST_FAILED" or event == "SPELL_INTERRUPT") then
-      nag:setCasting() -- Casting ended, either clear it ot set it to GCD
-      cleuUsed = true
-    end
-
-    -- SPELL_CAST_SUCCESS is used to track last time a cooldown was used
-    local cd = nag.cd[spellID]
-    if cd and fromPlayer then
-      if event == "SPELL_CAST_SUCCESS" then
-        cd.cast = GetTime() -- Update last cast time
-        if aura_env.config.trace then
-          DevTools_Dump({ cooldown = { key = cd.key, last_cast = cd.cast }})
-        end
-      end
-    end
-
-    -- SPELL_AURA_APPLIED, SPELL_AURA_REFRESH, SPELL_AURA_REMOVED are used to track buffs and debuffs
-    local aura = nag.auras[spellID]
-    if aura and (not aura.selfOnly or fromPlayer) then
-      if aura.helpful or current_target == destGUID then
-        if event == "SPELL_AURA_APPLIED" or event == "SPELL_AURA_REFRESH" then
-            aura.expiration = nag:auraExpiration(aura.key)
-            cleuUsed = true
-        elseif event == "SPELL_AURA_REMOVED" then
-            aura.expiration = 0
-            cleuUsed = true
-        end
-        if aura_env.config.trace then
-          DevTools_Dump({ aura = { key = aura.key, expiration = aura.expiration, remaining = aura.expiration >= GetTime() and (aura.expiration-GetTime()) or -1 } })
-        end
-      end
-    end
-
-    -- SPELL_CAST_START, SPELL_CAST_SUCCESS, SPELL_CAST_FAILED, SPELL_INTERRUPT, SPELL_DAMAGE, SPELL_MISSED are used to track casts
-    local cast = nag.casts[spellID]
-    if cast and fromPlayer then
-      if event == "SPELL_CAST_START" then
-        if current_target then
-          cast.casting_on = current_target -- Assume casting on target
-          cast.sent[current_target] = 0
-          cleuUsed = true
-        end
-      elseif event == "SPELL_CAST_SUCCESS" then
-        cast.sent[destGUID] = GetTime()
-        cast.casting_on = nil -- Please test if overwrite in case of e.g. double pyro
-        cleuUsed = true
-      elseif event == "SPELL_CAST_FAILED" or event == "SPELL_INTERRUPT" then
-        if cast.casting_on then
-          cast.sent[cast.casting_on] = nil
-          cast.casting_on = nil -- Please test if overwrite in case of e.g. double pyro
-          cleuUsed = true
-        end
-      elseif event == "SPELL_DAMAGE" or event == "SPELL_MISSED" then
-        cast.sent[destGUID] = nil
-        cleuUsed = true
-      end
-      if aura_env.config.trace then
-        DevTools_Dump({ cast = { key = cast.key, casting_on = cast.casting_on, sent = cast.sent } })
-      end
-    end
-
-    -- SPELL_AURA_APPLIED, SPELL_AURA_REFRESH, SPELL_AURA_REMOVED are used to track procs
-    -- This is just a simpler version of buffs/debuffs
-    local proc = nag.procs[spellID]
-    if proc and fromPlayer then
-      if event == "SPELL_AURA_APPLIED" or event == "SPELL_AURA_REFRESH" then
-        proc.active = true
-        cleuUsed = true
-      elseif event == "SPELL_AURA_REMOVED" then
-        proc.active = false
-        cleuUsed = true
-      end
-      if aura_env.config.trace then
-        DevTools_Dump({ proc = { key = proc.key, active = proc.active } })
-      end
-    end
-
-    if not cleuUsed then
-      -- Stop now if there is nothing new
-      return nag.enabled
-    end
+  local keepGoing = nag:analyzeEvent(ev)
+  if not keepGoing then
+    return nag.enabled -- If the event is not relevant, stop here
   end
 
-  if not nag.enabled then
-    return false
-  end
-
-  -- Step 2. Analyze the gathered information and decide what spell to cast next
+  -- Step 2. Analyze gathered information and decide what spell to cast next
 
   local timeOfNextSpell = nag:getTimeOfNextSpell()
 

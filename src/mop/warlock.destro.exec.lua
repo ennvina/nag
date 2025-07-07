@@ -22,23 +22,61 @@ function (ev)
 
   local timeOfNextSpell, lastDecision = nag:preDecide()
 
+
   local immo = nag:isAuraExpired("immo", "target", timeOfNextSpell)
   local coe = nag:isAuraExpired("coe", "target", timeOfNextSpell)
+  local dsi = nag:isAuraExpired("ds:instability", "player", timeOfNextSpell)
   local shadowburn = nag:canCast("shadowburn", timeOfNextSpell)
   local chaosBolt = nag:canCast("chaos_bolt", timeOfNextSpell)
   local conflag = nag:canCast("conflagrate", timeOfNextSpell)
+ 
+  local currentBurningEmbers = UnitPower("player", Enum.PowerType.BurningEmbers, true) * 0.1
+  local futureBurningEmbers = currentBurningEmbers - nag:getCastingCost(Enum.PowerType.BurningEmbers)
+  -- @TODO define what is a good burst window for Chaos Bolt and Shadowburn using the prefer_cb_on_burst option
+  local isBurstWindow = not dsi.expired -- For now make it simple: burst window = Dark Soul: Instability
+
+  -- Cast / refresh Immolate first
   if immo.expired then
     nag:decide("aura:immo", immo.spellID, immo.castTime)
-  elseif coe.expired then
+
+  -- Cast Curse of the Elements if missing and no one else applies an equivalent debuff
+  elseif coe.expired
+  and nag:isAuraExpired("master_poisoner", "target", timeOfNextSpell).expired
+  and nag:isAuraExpired("fire_breath", "target", timeOfNextSpell).expired
+  and nag:isAuraExpired("lightning_breath", "target", timeOfNextSpell).expired
+  then
     nag:decide("aura:coe", coe.spellID, coe.castTime)
+
+  -- Cast Shadowburn before being overcapped
+  elseif shadowburn.usable and futureBurningEmbers >= 3.5 then
+    nag:decide("cast:shadowburn:capped", shadowburn.spellID, shadowburn.castTime)
+
+  -- Cast Chaos Bolt before being overcapped
+  elseif chaosBolt.usable and futureBurningEmbers >= 3.5 then
+    nag:decide("cast:chaos_bolt:capped", chaosBolt.spellID, chaosBolt.castTime)
+
+  -- Cast Shadowburn during burst windows
+  elseif shadowburn.usable and isBurstWindow then
+    nag:decide("cast:shadowburn:burst", shadowburn.spellID, shadowburn.castTime)
+
+  -- Cast Chaos Bolt during burst windows
+  elseif chaosBolt.usable and isBurstWindow then
+    nag:decide("cast:chaos_bolt:burst", chaosBolt.spellID, chaosBolt.castTime)
+
+  -- Cast Conflagrate if there are charges available
   elseif conflag.usable then
     nag:decide("cast:conflagrate", conflag.spellID, conflag.castTime)
-  elseif shadowburn.usable then
+
+  -- Cast Shadowburn as pseudo-filler, if not setup to be cast only in burst windows
+  elseif shadowburn.usable and not aura_env.config.prefer_cb_on_burst then
     nag:decide("cast:shadowburn", shadowburn.spellID, shadowburn.castTime)
-  elseif chaosBolt.usable then
+
+  -- Cast Chaos Bolt as pseudo-filler, if not setup to be cast only in burst windows
+  elseif chaosBolt.usable and not aura_env.config.prefer_cb_on_burst then
     nag:decide("cast:chaos_bolt", chaosBolt.spellID, chaosBolt.castTime)
+
+  -- Cast Incinerate as filler
   else
-    -- Use Incinerate as filler
     nag:decide("filler:incinerate", 29722) -- Incinerate = 29722
   end
 

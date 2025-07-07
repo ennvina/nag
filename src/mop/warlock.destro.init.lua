@@ -454,6 +454,21 @@ function nag_mixin:setCasting(spellID, guid, startTime, endTime)
   self.casting = { spellID = spellID, guid = guid, startTime = startTime, endTime = endTime }
 end
 
+function nag_mixin:getCastingCost(powerType)
+  local powerTypeCost = 0
+
+  if self.casting then
+    local powerCosts = C_Spell.GetSpellPowerCost(self.casting.spellID)
+    for _, cost in ipairs(powerCosts or {}) do
+      if cost.type == Enum.PowerType.BurningEmbers then
+        powerTypeCost = powerTypeCost + cost.cost
+      end
+    end
+  end
+
+  return powerTypeCost
+end
+
 function nag_mixin:getTimeOfNextSpell()
   return self.casting and self.casting.endTime or GetTime()
 end
@@ -837,6 +852,8 @@ nag:addAura("fire_breath", false, false, 34889) -- Fire Breath = 34889
 nag:addAura("lightning_breath", false, false, 24844) -- Lightning Breath = 24844
 
 nag:addAura("immo", false, true, 348) -- Immolate
+
+nag:addAura("ds:instability", true, true, 113858) -- Dark Soul: Instability = 113858
 
 for key, auraDef in pairs(nag.auras) do
   if type(key) == "string" then

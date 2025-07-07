@@ -1,5 +1,11 @@
 ## NAG Changelog
 
+#### v0.8 (2025-07-xx)
+
+Features
+- Add logic to prefer casting Chaos Bolt or Shadowburn on burst windows
+- Currently, the 'burst window' is limited to Dark Soul: Instability
+
 #### v0.7 (2025-07-07)
 
 Features

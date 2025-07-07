@@ -1,35 +1,50 @@
-aura_env.nag = {
-  enabled = false,
+local nag_mixin = {}
+_G["NAG_MIXIN"] = nag_mixin
 
-  next = {
-    what = "", -- Reason for the next cast e.g., "aura:immo"
-    cast = nil, -- Spell ID
-    icon = nil, -- Icon ID
-    time = nil, -- Cast time
-    name = nil, -- Name (usually spell name)
-  },
+--[[
 
-  last_known_gcd = 1.5,
-  last_target = nil,
+    NAG Constructor
 
-  links = {}, -- Links between auras, procs, casts, and cooldowns; filled last
+]]
 
-  auras = {}, -- Buffs/debuffs to track
+function nag_mixin:new()
+  local object = {
+    enabled = false,
 
-  procs = {}, -- Procs to track on the player
+    next = {
+        what = "", -- Reason for the next cast e.g., "aura:immo"
+        cast = nil, -- Spell ID
+        icon = nil, -- Icon ID
+        time = nil, -- Cast time
+        name = nil, -- Name (usually spell name)
+    },
 
-  casts = {}, -- Spells already cast by the player, waiting to hit its target
-  casting = nil, -- Spell currently being cast by the player
+    last_known_gcd = 1.5,
+    current_target = nil,
 
-  cd = {}, -- Cooldowns to track on the player
+    links = {}, -- Links between auras, procs, casts, and cooldowns; filled last
 
-  -- Methods written below, separated for clarity
-}
+    auras = {}, -- Buffs/debuffs to track
+
+    procs = {}, -- Procs to track on the player
+
+    casts = {}, -- Spells already cast by the player, waiting to hit its target
+    casting = nil, -- Spell currently being cast by the player
+
+    cd = {}, -- Cooldowns to track on the player
+  }
+
+  self.__index = nil
+  setmetatable(object, self)
+  self.__index = self
+
+  return object
+end
 
 
 -- Decision making
 
-function aura_env.nag:decide(what, spellID, castTime)
+function nag_mixin:decide(what, spellID, castTime)
   local spellInfo = C_Spell.GetSpellInfo(spellID)
 
   if not spellInfo then
@@ -65,30 +80,38 @@ local function debugPrint(level, color, ...)
   print("|cn" .. color .. ":NAG " .. level .. ":|r", ...)
 end
 
-function aura_env.nag:trace(...)
+function nag_mixin:trace(...)
   if aura_env.config.trace then
     debugPrint("Trace", "WHITE_FONT_COLOR", ...)
   end
 end
 
-function aura_env.nag:log(...)
+function nag_mixin:log(...)
   if aura_env.config.debug or aura_env.config.trace then
     debugPrint("Log", "NORMAL_FONT_COLOR", ...)
   end
 end
 
-function aura_env.nag:info(...)
+function nag_mixin:info(...)
   debugPrint("Info", "HIGHLIGHT_LIGHT_BLUE", ...)
 end
 
-function aura_env.nag:warn(...)
+function nag_mixin:warn(...)
   debugPrint("Warn", "WARNING_FONT_COLOR", ...)
 end
 
-function aura_env.nag:error(...)
+function nag_mixin:error(...)
   debugPrint("Error", "ERROR_COLOR", ...)
 end
 
+--[[
+
+    Class Properties
+
+    These methods define how to handle properties in general
+    Class-specific property initialization will come later, at the end of this script
+
+]]
 
 -- [[ Links ]]
 
@@ -101,8 +124,8 @@ end
   - Cast <-> Cooldown - The 'cast' spell can be cast only when the 'cooldown' is ready
 ]]
 
--- Example: aura_env.nag:addLink("pyro_instant", { cast = "pyro", proc = "hot_streak" })
-function aura_env.nag:addLink(key, objKeys)
+-- Example: nag:addLink("pyro_instant", { cast = "pyro", proc = "hot_streak" })
+function nag_mixin:addLink(key, objKeys)
   if self.links[key] then
     self:warn("Link " .. key .. " already exists, overwriting it")
   end
@@ -164,7 +187,7 @@ end
 -- helpful = true for player buff, false for target debuff; do not support (yet) target buffs or player debuffs, which would be a bit weird for a NAG
 -- selfOnly = true if the buff/debuff must originate from the player, false if it can cast by anyone, including the player
 -- spellID = spell to track
-function aura_env.nag:addAura(key, helpful, selfOnly, spellID)
+function nag_mixin:addAura(key, helpful, selfOnly, spellID)
   if self.auras[key] then
     self:warn("Aura " .. key .. " already exists, overwriting it")
   end
@@ -187,10 +210,10 @@ function aura_env.nag:addAura(key, helpful, selfOnly, spellID)
   self.auras[spellID] = self.auras[key] -- Also map the spellID to the aura, for easier access
 end
 
-local function debuffExpiration(auraDef)
+local function debuffExpiration(self, auraDef)
   -- Debuffs should always be on target
   if auraDef.helpful ~= false then
-    aura_env.nag:error("debuffExpiration called for a helpful aura: " .. auraDef.spellID)
+    self:error("debuffExpiration called for a helpful aura: " .. auraDef.spellID)
     return 0
   end
   -- local unit = buff.helpful and "player" or "target"
@@ -214,9 +237,9 @@ local function debuffExpiration(auraDef)
   return 0
 end
 
-local function buffExpiration(auraDef)
+local function buffExpiration(self, auraDef)
   if auraDef.helpful ~= true then
-    aura_env.nag:error("buffExpiration called for a harmful aura: " .. auraDef.spellID)
+    self:error("buffExpiration called for a harmful aura: " .. auraDef.spellID)
     return 0
   end
   local aura = C_UnitAuras.GetPlayerAuraBySpellID(auraDef.spellID);
@@ -228,20 +251,20 @@ local function buffExpiration(auraDef)
   return 0
 end
 
-function aura_env.nag:auraExpiration(key)
+function nag_mixin:auraExpiration(key)
   local auraDef = self.auras[key]
   if not auraDef then
     self:warn("Aura " .. key .. " not found")
     return 0
   end
   if auraDef.helpful then
-    return buffExpiration(auraDef)
+    return buffExpiration(self, auraDef)
   else
-    return debuffExpiration(auraDef)
+    return debuffExpiration(self, auraDef)
   end
 end
 
-function aura_env.nag:getAuraCastInfo(aura, cast, unit, when)
+function nag_mixin:getAuraCastInfo(aura, cast, unit, when)
     -- Take into account for cast time and travel time
     local minTravelTime, maxTravelTime, giveUpTravelTime = self:getTravelTime(cast, unit)
     -- We use minTravelTime to avoid refreshing the aura too soon
@@ -257,7 +280,7 @@ function aura_env.nag:getAuraCastInfo(aura, cast, unit, when)
     return auraWillBeThere, isBeingCastOnUnit, castTime
 end
 
-function aura_env.nag:isAuraExpired(key, unit, when)
+function nag_mixin:isAuraExpired(key, unit, when)
   local aura = self.auras[key]
   if not aura then
     self:warn("Aura " .. key .. " not found")
@@ -298,15 +321,15 @@ function aura_env.nag:isAuraExpired(key, unit, when)
   return (missingAura or not auraWillBeThere) and not isBeingCastOnUnit, suggestionRefreshSpellID, suggestionCastTime
 end
 
-function aura_env.nag:fetchTargetDebuffs()
+local function fetchTargetDebuffs(self)
   for _, auraDef in pairs(self.auras) do
     if not auraDef.helpful then -- Non-helpful auras are supposed to be target debuffs
-      auraDef.expiration = debuffExpiration(auraDef)
+      auraDef.expiration = debuffExpiration(self, auraDef)
     end
   end
 end
 
-function aura_env.nag:resetTargetDebuffs()
+local function resetTargetDebuffs(self)
   for _, auraDef in pairs(self.auras) do
     if not auraDef.helpful then -- Non-helpful auras are supposed to be target debuffs
       auraDef.expiration = 0
@@ -317,7 +340,7 @@ end
 
 -- [[ Procs ]]
 
-function aura_env.nag:addProc(key, spellID)
+function nag_mixin:addProc(key, spellID)
   if self.procs[key] then
     self:warn("Proc " .. key .. " already exists, overwriting it")
   end
@@ -338,7 +361,7 @@ function aura_env.nag:addProc(key, spellID)
   self.procs[spellID] = self.procs[key] -- Also map the spellID to the proc, for easier access
 end
 
-function aura_env.nag:hasProc(key)
+function nag_mixin:hasProc(key)
   local proc = self.procs[key]
   if not proc then
     self:warn("Proc " .. key .. " not found")
@@ -350,7 +373,7 @@ end
 
 -- [[ Casts ]]
 
-function aura_env.nag:addCast(key, spellID, travels)
+function nag_mixin:addCast(key, spellID, travels)
   if self.casts[key] then
     self:warn("Cast " .. key .. " already exists, overwriting it")
   end
@@ -382,7 +405,7 @@ end
 -- 2. If the spellID is nil, then the cast has finished, in which case, either:
 -- 2a. The Global Cooldown is triggered -> use the Global Cooldown (GCD) start and end times to simulate a lingering cast
 -- 2b. The GCD is not triggered -> set the casting to nil, because the player is completely free to cast something else right now
-function aura_env.nag:setCasting(spellID, guid, startTime, endTime)
+function nag_mixin:setCasting(spellID, guid, startTime, endTime)
   if not spellID then
     local gcdStart, gcdDuration = GetSpellCooldown(61304) -- GCD = 61304
 
@@ -397,7 +420,7 @@ function aura_env.nag:setCasting(spellID, guid, startTime, endTime)
   self.casting = { spellID = spellID, guid = guid, startTime = startTime, endTime = endTime }
 end
 
-function aura_env.nag:getTimeOfNextSpell()
+function nag_mixin:getTimeOfNextSpell()
   return self.casting and self.casting.endTime or GetTime()
 end
 
@@ -415,7 +438,7 @@ All values are estimations, and may be more or less accurate depending on factor
 - wrong estimation of the unit's range e.g., altered by hitboxes
 - wrong estimation of the spell's travel time (remember it is based on empirical data)
 ]]
-function aura_env.nag:getTravelTime(cast, unit)
+function nag_mixin:getTravelTime(cast, unit)
   if not cast.travels then
     return 0, 0, 0 -- Instant hit = zero travel time
   end
@@ -501,7 +524,7 @@ function aura_env.nag:getTravelTime(cast, unit)
   return minCast, maxCast, giveUpTime
 end
 
-function aura_env.nag:getCastTime(cast, when)
+function nag_mixin:getCastTime(cast, when)
   local procLinks = cast.links.proc
   if procLinks then
     for _, proc in ipairs(procLinks) do
@@ -516,7 +539,7 @@ function aura_env.nag:getCastTime(cast, when)
   return 0.001 * select(4, GetSpellInfo(cast.spellID))
 end
 
-function aura_env.nag:canCast(key, when)
+function nag_mixin:canCast(key, when)
   local cast = self.casts[key]
   if not cast then
     self:warn("Cast " .. key .. " not found")
@@ -574,7 +597,7 @@ end
 
 -- [[ Cooldowns ]]
 
-function aura_env.nag:addCooldown(key, spellID, spammable)
+function nag_mixin:addCooldown(key, spellID, spammable)
   if self.cd[key] then
     self:warn("Cooldown " .. key .. " already exists, overwriting it")
   end
@@ -600,7 +623,7 @@ end
 -- 1. The spell is known
 -- 2. The spell's cooldown duration matches the GCD's duration, or the spell will be off cooldown at 'when'
 -- 3. GetTime() is greater than the spell last known cast time + 1 second, for extra safety against lags
-function aura_env.nag:isCooldownReady(key, when)
+function nag_mixin:isCooldownReady(key, when)
   local cd = self.cd[key]
   if not cd then
     warn("Cooldown " .. key .. " not found")
@@ -622,67 +645,94 @@ function aura_env.nag:isCooldownReady(key, when)
   return (isReady or willBeReady) and notTooSoon
 end
 
--- [[ Warlock-specific init ]]
+--[[
 
-aura_env.nag:info("Initializing |T626007:16:16:0:0:512:512:32:480:32:480|t Warlock...")
+    Event Handlers
+
+]]
+
+function nag_mixin:updateTarget()
+  self.enabled = UnitExists("target") and UnitCanAttack("player", "target")
+  local current_target = UnitGUID("target")
+  if current_target ~= self.current_target then
+    if current_target then
+      fetchTargetDebuffs(self)
+    else
+      resetTargetDebuffs(self)
+    end
+    self.current_target = current_target
+  end
+end
+
+--[[
+
+    Warlock-specific init
+
+]]
+
+local nag = _G["NAG_MIXIN"]:new()
+
+nag:info("Initializing |T626007:16:16:0:0:512:512:32:480:32:480|t Warlock...")
 
 -- Buffs and debuffs
-aura_env.nag:log("Initializing auras...")
-aura_env.nag:addAura("coe", false, false, 1490) -- Curse of the Elements = 1490
-aura_env.nag:addAura("master_poisoner", false, false, 58410) -- Master Poisoner = 58410
-aura_env.nag:addAura("fire_breath", false, false, 34889) -- Fire Breath = 34889
-aura_env.nag:addAura("lightning_breath", false, false, 24844) -- Lightning Breath = 24844
+nag:log("Initializing auras...")
+nag:addAura("coe", false, false, 1490) -- Curse of the Elements = 1490
+nag:addAura("master_poisoner", false, false, 58410) -- Master Poisoner = 58410
+nag:addAura("fire_breath", false, false, 34889) -- Fire Breath = 34889
+nag:addAura("lightning_breath", false, false, 24844) -- Lightning Breath = 24844
 
-aura_env.nag:addAura("immo", false, true, 348) -- Immolate
+nag:addAura("immo", false, true, 348) -- Immolate
 
-for key, auraDef in pairs(aura_env.nag.auras) do
+for key, auraDef in pairs(nag.auras) do
   if type(key) == "string" then
-    aura_env.nag:log("Aura:", key, "Spell ID:", auraDef.spellID, "Helpful:", auraDef.helpful, "Self Only:", auraDef.self)
+    nag:log("Aura:", key, "Spell ID:", auraDef.spellID, "Helpful:", auraDef.helpful, "Self Only:", auraDef.self)
   end
 end
 
 -- Procs
-aura_env.nag:log("Initializing procs...")
-aura_env.nag:addProc("backdraft", 117828) -- Backdraft = 117828
-for key, procDef in pairs(aura_env.nag.procs) do
+nag:log("Initializing procs...")
+nag:addProc("backdraft", 117828) -- Backdraft = 117828
+for key, procDef in pairs(nag.procs) do
   if type(key) == "string" then
-    aura_env.nag:log("Proc:", key, "Spell ID:", procDef.spellID)
+    nag:log("Proc:", key, "Spell ID:", procDef.spellID)
   end
 end
 
 -- Spells being cast
-aura_env.nag:log("Initializing casts...")
-aura_env.nag:addCast("incinerate", 29722, true) -- Incinerate
-aura_env.nag:addCast("immolate", 348, false) -- Immolate
-aura_env.nag:addCast("conflagrate", 17962, false) -- Conflagrate
-aura_env.nag:addCast("chaos_bolt", 116858, true) -- Chaos Bolt
-aura_env.nag:addCast("shadowburn", 17877, false) -- Shadowburn
-aura_env.nag:addCast("coe", 1490, false) -- Curse of Elements
-for key, castDef in pairs(aura_env.nag.casts) do
+nag:log("Initializing casts...")
+nag:addCast("incinerate", 29722, true) -- Incinerate
+nag:addCast("immolate", 348, false) -- Immolate
+nag:addCast("conflagrate", 17962, false) -- Conflagrate
+nag:addCast("chaos_bolt", 116858, true) -- Chaos Bolt
+nag:addCast("shadowburn", 17877, false) -- Shadowburn
+nag:addCast("coe", 1490, false) -- Curse of Elements
+for key, castDef in pairs(nag.casts) do
   if type(key) == "string" then
-    aura_env.nag:log("Cast:", key, "Spell ID:", castDef.spellID, "Travels:", castDef.travels)
+    nag:log("Cast:", key, "Spell ID:", castDef.spellID, "Travels:", castDef.travels)
   end
 end
 
 -- Cooldowns
-aura_env.nag:log("Initializing cooldowns...")
-aura_env.nag:addCooldown("conflag", 17962, true) -- Conflagrate
-aura_env.nag:addCooldown("ds:instability", 113858) -- Dark Soul: Instability = 113858
-for key, cdDef in pairs(aura_env.nag.cd) do
+nag:log("Initializing cooldowns...")
+nag:addCooldown("conflag", 17962, true) -- Conflagrate
+nag:addCooldown("ds:instability", 113858) -- Dark Soul: Instability = 113858
+for key, cdDef in pairs(nag.cd) do
   if type(key) == "string" then
-    aura_env.nag:log("Cooldown:", key, "Spell ID:", cdDef.spellID)
+    nag:log("Cooldown:", key, "Spell ID:", cdDef.spellID)
   end
 end
 
 -- Links, always added last
-aura_env.nag:log("Initializing links...")
-aura_env.nag:addLink("immo", { aura = "immo", cast = "immolate" })
-aura_env.nag:addLink("conflag", { cast = "conflagrate", cd = "conflag" })
-aura_env.nag:addLink("coe", { aura = "coe", cast = "coe" })
-for key, linkDef in pairs(aura_env.nag.links) do
+nag:log("Initializing links...")
+nag:addLink("immo", { aura = "immo", cast = "immolate" })
+nag:addLink("conflag", { cast = "conflagrate", cd = "conflag" })
+nag:addLink("coe", { aura = "coe", cast = "coe" })
+for key, linkDef in pairs(nag.links) do
   if type(key) == "string" then
-    aura_env.nag:log("Link:", key, "Aura:", linkDef.aura and linkDef.aura.key or nil, "Cast:", linkDef.cast and linkDef.cast.key or nil, "Proc:", linkDef.proc and linkDef.proc.key or nil, "Cooldown:", linkDef.cd and linkDef.cd.key or nil)
+    nag:log("Link:", key, "Aura:", linkDef.aura and linkDef.aura.key or nil, "Cast:", linkDef.cast and linkDef.cast.key or nil, "Proc:", linkDef.proc and linkDef.proc.key or nil, "Cooldown:", linkDef.cd and linkDef.cd.key or nil)
   end
 end
 
-aura_env.nag:info("Initialization complete.")
+nag:info("Initialization complete.")
+
+aura_env.nag = nag

@@ -1,5 +1,11 @@
 ## NAG Changelog
 
+#### v0.6 (2025-07-07)
+
+Features
+- Make NAG code as a mixin, currently for MoP's Destruction Warlock only
+- Move the target update logic to init.lua instead of exec.lua
+
 #### v0.5 (2025-07-07)
 
 Features

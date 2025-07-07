@@ -165,11 +165,11 @@ function (ev)
   -- Look into the future, and ajust the present if the future does not look bright enough
   local timeOfNextNextSpell = timeOfNextSpell + math.max(aura_env.nag.next.time, aura_env.nag.last_known_gcd)
   -- Priority: refresh ISF at all costs
-  if not isfExpired and aura_env.nag.next.what ~= "aura:isf" then
+  if not isf.expired and aura_env.nag.next.what ~= "aura:isf" then
     -- Try again with ISF in the future
-    isfExpired, isffRefreshSpellID, isfRefreshCastTime = aura_env.nag:isAuraExpired("isf", "target", timeOfNextNextSpell)
-    if isfExpired then
-      aura_env.nag:decide("aura:isf:future", isffRefreshSpellID, isfRefreshCastTime)
+    isf = aura_env.nag:isAuraExpired("isf", "target", timeOfNextNextSpell)
+    if isf.expired then
+      aura_env.nag:decide("aura:isf:future", isf.spellID, isf.castTime)
     end
   end
 

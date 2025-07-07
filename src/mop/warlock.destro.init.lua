@@ -741,7 +741,11 @@ function nag_mixin:analyzeCLEU()
     if aura_env.config.trace then
       DevTools_Dump({ casting = self.casting })
     end
-  elseif fromPlayer and (event == "SPELL_CAST_SUCCESS" or event == "SPELL_CAST_FAILED" or event == "SPELL_INTERRUPT") then
+  elseif fromPlayer and
+  (  event == "SPELL_CAST_SUCCESS"
+  or(event == "SPELL_CAST_FAILED" and self.casting and spellID == self.casting.spellID)
+  or event == "SPELL_INTERRUPT"
+  ) then
     self:setCasting() -- Casting ended, either clear it ot set it to GCD
     cleuUsed = true
   end

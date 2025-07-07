@@ -74,6 +74,37 @@ function nag_mixin:decide(what, spellID, castTime)
   return castTime
 end
 
+function nag_mixin:preDecide()
+  local timeOfNextSpell = self:getTimeOfNextSpell()
+
+  local gcdCD = select(2, GetSpellCooldown(61304)) -- 61304 = Global Cooldown
+  if gcdCD ~= 0 then
+    self.last_known_gcd = gcdCD
+  end
+
+  local lastDecision = self.next -- Cache for future use in debugging (@see postDecide)
+
+  return timeOfNextSpell, lastDecision
+end
+
+function nag_mixin:postDecide(lastDecision)
+  -- Debug decision changes
+  if aura_env.config.debug or aura_env.config.trace then
+    local newDecision = self.next
+    if newDecision.what ~= lastDecision.what
+    or newDecision.cast ~= lastDecision.cast
+    or newDecision.icon ~= lastDecision.icon
+    or newDecision.name ~= lastDecision.name
+    or newDecision.time ~= lastDecision.time
+    then -- Log only if changed
+      self:log(
+        string.format("Decision: %s, %s, %s, %s, %s",
+        tostring(newDecision.what), tostring(newDecision.cast), tostring(newDecision.icon), tostring(newDecision.name), tostring(newDecision.time))
+      )
+    end
+  end
+end
+
 -- Utility Functions
 
 local function debugPrint(level, color, ...)

@@ -20,14 +20,7 @@ function (ev)
 
   -- Step 2. Analyze gathered information and decide what spell to cast next
 
-  local timeOfNextSpell = nag:getTimeOfNextSpell()
-
-  local gcdCD = select(2, GetSpellCooldown(61304))
-  if gcdCD ~= 0 then
-    nag.last_known_gcd = gcdCD
-  end
-
-  local lastDecision = nag.next -- Cache for future use in debugging
+  local timeOfNextSpell, lastDecision = nag:preDecide()
 
   local immoExpired, immoRefreshSpellID, immoRefreshCastTime = nag:isAuraExpired("immo", "target", timeOfNextSpell)
   local coeExpired, coeRefreshSpellID, coeRefreshCastTime = nag:isAuraExpired("coe", "target", timeOfNextSpell)
@@ -60,21 +53,7 @@ function (ev)
     end
   end
 
-  -- Debug decision changes
-  if aura_env.config.debug or aura_env.config.trace then
-    local newDecision = nag.next
-    if newDecision.what ~= lastDecision.what
-    or newDecision.cast ~= lastDecision.cast
-    or newDecision.icon ~= lastDecision.icon
-    or newDecision.name ~= lastDecision.name
-    or newDecision.time ~= lastDecision.time
-    then -- Log only if changed
-      nag:log(
-        string.format("Decision: %s, %s, %s, %s, %s",
-        tostring(newDecision.what), tostring(newDecision.cast), tostring(newDecision.icon), tostring(newDecision.name), tostring(newDecision.time))
-      )
-    end
-  end
+  nag:postDecide(lastDecision)
 
   return true
 end

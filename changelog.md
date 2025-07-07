@@ -4,6 +4,7 @@
 
 Features
 - Move the cleu logic to init.lua instead of exec.lua
+- Move pre- and post-decision logic to init.lua
 
 #### v0.6 (2025-07-07)
 

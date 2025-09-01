@@ -1,6 +1,6 @@
 ## NAG Changelog
 
-#### v0.9 (2025-07-xx)
+#### v0.9 (2025-07-17)
 
 Features
 - Suggest Incinerate as opener

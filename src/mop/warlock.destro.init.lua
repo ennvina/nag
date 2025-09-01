@@ -458,10 +458,15 @@ function nag_mixin:setCasting(spellID, guid, startTime, endTime)
   self.casting = { spellID = spellID, guid = guid, startTime = startTime, endTime = endTime }
 end
 
+-- Check if the player is casting a spell other than the GCD
+function nag_mixin:isCastingSomething()
+  return self.casting and self.casting.spellID ~= 61304
+end
+
 function nag_mixin:getCastingCost(powerType)
   local powerTypeCost = 0
 
-  if self.casting then
+  if self:isCastingSomething() then
     local powerCosts = C_Spell.GetSpellPowerCost(self.casting.spellID)
     for _, cost in ipairs(powerCosts or {}) do
       if cost.type == Enum.PowerType.BurningEmbers then
@@ -628,7 +633,7 @@ function nag_mixin:canCast(key, when)
     However, by the time Chaos Bolt is cast, there will be 0.2 Burning Embers left, and Shadowburn will not be usable
     That's what we are trying to detect with the code below
   ]]
-  if self.casting then
+  if self:isCastingSomething() then
     local powerCosts = C_Spell.GetSpellPowerCost(cast.spellID)
     local castingPowerCosts = C_Spell.GetSpellPowerCost(self.casting.spellID)
     for _, cost in ipairs(powerCosts or {}) do

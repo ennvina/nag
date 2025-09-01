@@ -44,7 +44,7 @@ function (ev, ...)
   aura_env.future_cb_estimation = cbEstimatedFuture
   local isBurstWindow = cbEstimatedFuture >= (aura_env.config.cb_burst_threshold or 300000)
 
-  if not InCombatLockdown() and not nag.casting then
+  if not InCombatLockdown() and not nag:isCastingSomething() then
     nag:decide("opener:incinerate", 29722) -- Incinerate = 29722
 
   -- Cast / refresh Immolate first

@@ -240,7 +240,7 @@ function nag_mixin:addAura(key, helpful, selfOnly, spellID)
     -- Aura properties
     spellID = spellID,
     helpful = helpful,
-    self = selfOnly,
+    selfOnly = selfOnly,
 
     -- Aura state
     expiration = 0,
@@ -923,7 +923,7 @@ nag:addAura("ds:instability", true, true, 113858) -- Dark Soul: Instability = 11
 
 for key, auraDef in pairs(nag.auras) do
   if type(key) == "string" then
-    nag:log("Aura:", key, "Spell ID:", auraDef.spellID, "Helpful:", auraDef.helpful, "Self Only:", auraDef.self)
+    nag:log("Aura:", key, "Spell ID:", auraDef.spellID, "Helpful:", auraDef.helpful, "Self Only:", auraDef.selfOnly)
   end
 end
 

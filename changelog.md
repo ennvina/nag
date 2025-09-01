@@ -1,5 +1,15 @@
 ## NAG Changelog
 
+#### v1.0 (2025-09-01)
+
+Features
+- Estimate Chaos Bolt damage to suggest Burst window
+- New option to setup the Chaos Bolt threshold for the above functionality
+
+Bug Fixes
+- Incurring GCD could be detected as if a spell was being cast
+- non-FnB CoE is now suggested if fading out soon, instead of fading out now
+
 #### v0.9 (2025-07-17)
 
 Features

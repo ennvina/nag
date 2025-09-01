@@ -883,14 +883,41 @@ local nag = _G["NAG_MIXIN"]:new()
 
 nag:info("Initializing |T626007:16:16:0:0:512:512:32:480:32:480|t Warlock...")
 
+-- Warlock-only functions
+function nag:estimatedBurningEmbersPerSec()
+  local haste = GetCombatRating(CR_HASTE_SPELL)
+  local crit = GetCombatRating(CR_CRIT_SPELL)
+  if UnitLevel("player") ~= 90 then
+    -- For non-90 players, normalize haste and crit as if the player were level 90
+    -- That is required because the formula has regression coefficients based on level 90
+    haste = GetCombatRatingBonus(CR_HASTE_SPELL) * 425 -- 425 is the level 90 coefficient for haste
+    crit = GetCombatRatingBonus(CR_CRIT_SPELL) * 600 -- 600 is the level 90 coefficient for crit
+  end
+
+  -- Research from https://discord.com/channels/253210018697052162/1393207377670570144
+  local baseEstimation =
+    0.000016603488 * haste +
+    0.000016711826 * crit +
+    -0.000000000158536 * haste*haste +
+    0.000000000235604 * haste*crit +
+    0.000000000005702 * crit*crit
+
+  local lowerBound = 0.5733616960 + baseEstimation
+  local upperBound = 0.6555130000 + baseEstimation
+
+  return lowerBound, upperBound
+end
+
 -- Buffs and debuffs
 nag:log("Initializing auras...")
 nag:addAura("coe", false, false, 1490) -- Curse of the Elements = 1490
+nag:addAura("coefnb", false, false, 104225) -- Curse of the Elements (Fire and Brimstone) = 104225
 nag:addAura("master_poisoner", false, false, 58410) -- Master Poisoner = 58410
 nag:addAura("fire_breath", false, false, 34889) -- Fire Breath = 34889
 nag:addAura("lightning_breath", false, false, 24844) -- Lightning Breath = 24844
 
 nag:addAura("immo", false, true, 348) -- Immolate
+nag:addAura("immotep", false, true, 108686) -- Immolate (Fire and Brimstone)
 
 nag:addAura("ds:instability", true, true, 113858) -- Dark Soul: Instability = 113858
 

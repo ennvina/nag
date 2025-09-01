@@ -22,8 +22,8 @@ function (ev, ...)
 
   local timeOfNextSpell, lastDecision = nag:preDecide()
 
-
   local immo = nag:isAuraExpired("immo", "target", timeOfNextSpell)
+  local immotep = nag:isAuraExpired("immotep", "target", timeOfNextSpell)
   local coe = nag:isAuraExpired("coe", "target", timeOfNextSpell)
   local dsi = nag:isAuraExpired("ds:instability", "player", timeOfNextSpell)
   local shadowburn = nag:canCast("shadowburn", timeOfNextSpell)
@@ -34,12 +34,19 @@ function (ev, ...)
   local futureBurningEmbers = currentBurningEmbers - nag:getCastingCost(Enum.PowerType.BurningEmbers)
   -- @TODO define what is a good burst window for Chaos Bolt and Shadowburn using the prefer_cb_on_burst option
   local isBurstWindow = not dsi.expired -- For now make it simple: burst window = Dark Soul: Instability
+  local maxEmbersPerSecond = 0 -- Currently set to 0, because the current algorithm that uses it has several issues
+--  local maxEmbersPerSecond = select(2, nag:estimatedBurningEmbersPerSec()) -- Uncomment it when the algorithm is fixed
+  local futureBurningEmbersMaxEstimated = futureBurningEmbers + maxEmbersPerSecond * (timeOfNextSpell - GetTime())
+  local burningEmbersCapThreshold = 3.5
+  local willOverCapBurningEmbers = futureBurningEmbersMaxEstimated >= burningEmbersCapThreshold
+  local allowedToSpendBurningEmbers = futureBurningEmbersMaxEstimated >= (aura_env.config.min_one_ember and 2 or 1)
+
 
   if not InCombatLockdown() and not nag.casting then
     nag:decide("opener:incinerate", 29722) -- Incinerate = 29722
 
   -- Cast / refresh Immolate first
-  elseif immo.expired then
+  elseif immo.expired and immotep.expired then
     nag:decide("aura:immo", immo.spellID, immo.castTime)
 
   -- Cast Curse of the Elements if missing and no one else applies an equivalent debuff
@@ -51,19 +58,19 @@ function (ev, ...)
     nag:decide("aura:coe", coe.spellID, coe.castTime)
 
   -- Cast Shadowburn before being overcapped
-  elseif shadowburn.usable and futureBurningEmbers >= 3.5 then
+  elseif shadowburn.usable and willOverCapBurningEmbers then
     nag:decide("cast:shadowburn:capped", shadowburn.spellID, shadowburn.castTime)
 
   -- Cast Chaos Bolt before being overcapped
-  elseif chaosBolt.usable and futureBurningEmbers >= 3.5 then
+  elseif chaosBolt.usable and willOverCapBurningEmbers then
     nag:decide("cast:chaos_bolt:capped", chaosBolt.spellID, chaosBolt.castTime)
 
   -- Cast Shadowburn during burst windows
-  elseif shadowburn.usable and isBurstWindow then
+  elseif shadowburn.usable and isBurstWindow and allowedToSpendBurningEmbers then
     nag:decide("cast:shadowburn:burst", shadowburn.spellID, shadowburn.castTime)
 
   -- Cast Chaos Bolt during burst windows
-  elseif chaosBolt.usable and isBurstWindow then
+  elseif chaosBolt.usable and isBurstWindow and allowedToSpendBurningEmbers then
     nag:decide("cast:chaos_bolt:burst", chaosBolt.spellID, chaosBolt.castTime)
 
   -- Cast Conflagrate if there are charges available
@@ -71,11 +78,11 @@ function (ev, ...)
     nag:decide("cast:conflagrate", conflag.spellID, conflag.castTime)
 
   -- Cast Shadowburn as pseudo-filler, if not setup to be cast only in burst windows
-  elseif shadowburn.usable and not aura_env.config.prefer_cb_on_burst then
+  elseif shadowburn.usable and not aura_env.config.prefer_cb_on_burst and allowedToSpendBurningEmbers then
     nag:decide("cast:shadowburn", shadowburn.spellID, shadowburn.castTime)
 
   -- Cast Chaos Bolt as pseudo-filler, if not setup to be cast only in burst windows
-  elseif chaosBolt.usable and not aura_env.config.prefer_cb_on_burst then
+  elseif chaosBolt.usable and not aura_env.config.prefer_cb_on_burst and allowedToSpendBurningEmbers then
     nag:decide("cast:chaos_bolt", chaosBolt.spellID, chaosBolt.castTime)
 
   -- Cast Incinerate as filler
@@ -83,14 +90,31 @@ function (ev, ...)
     nag:decide("filler:incinerate", 29722) -- Incinerate = 29722
   end
 
-  -- Look into the future, and adjust the present if the future does not look bright enough
-  local timeOfNextNextSpell = timeOfNextSpell + math.max(nag.next.time, nag.last_known_gcd)
-  -- Priority: refresh Immolate at all costs
-  if InCombatLockdown() and not immo.expired and nag.next.what ~= "aura:immo" then
-    -- Try again with Immolate in the future
-    immo = nag:isAuraExpired("immo", "target", timeOfNextNextSpell)
-    if immo.expired then
-      nag:decide("aura:immo:future", immo.spellID, immo.castTime)
+  if InCombatLockdown() then
+    -- Look into the future, and adjust the present if the future does not look bright enough
+    local timeOfNextNextSpell = timeOfNextSpell + math.max(nag.next.time, nag.last_known_gcd)
+    -- Priority: refresh Immolate at all costs
+    if not immo.expired and not immotep.expired and nag.next.what ~= "aura:immo" then
+      -- Try again with Immolate in the future
+      immo = nag:isAuraExpired("immo", "target", timeOfNextNextSpell)
+      immotep = nag:isAuraExpired("immotep", "target", timeOfNextNextSpell)
+      if immo.expired and immotep.expired then
+        nag:decide("aura:immo:future", immo.spellID, immo.castTime)
+      end
+    end
+    -- Second highest priority: do not waste Burning Embers
+    if nag.next.what ~= "aura:immo:future" then
+      local futureFutureBurningEmbersMaxEstimated = futureBurningEmbers + maxEmbersPerSecond * (timeOfNextNextSpell - GetTime())
+      if futureFutureBurningEmbersMaxEstimated >= burningEmbersCapThreshold then
+        local currentCast = nag.next.what:match("cast:(%w+)")
+        if currentCast ~= "shadowburn" and currentCast ~= "chaos_bolt" then
+          if shadowburn.usable then
+            nag:decide("cast:shadowburn:future", shadowburn.spellID, shadowburn.castTime)
+          elseif chaosBolt.usable then
+            nag:decide("cast:chaos_bolt:future", chaosBolt.spellID, chaosBolt.castTime)
+          end
+        end
+      end
     end
   end
 

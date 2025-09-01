@@ -50,11 +50,7 @@ function (ev, ...)
     nag:decide("aura:immo", immo.spellID, immo.castTime)
 
   -- Cast Curse of the Elements if missing and no one else applies an equivalent debuff
-  elseif coe.expired
-  and nag:isAuraExpired("master_poisoner", "target", timeOfNextSpell).expired
-  and nag:isAuraExpired("fire_breath", "target", timeOfNextSpell).expired
-  and nag:isAuraExpired("lightning_breath", "target", timeOfNextSpell).expired
-  then
+  elseif nag:coeWillExpire(timeOfNextSpell) then
     nag:decide("aura:coe", coe.spellID, coe.castTime)
 
   -- Cast Shadowburn before being overcapped

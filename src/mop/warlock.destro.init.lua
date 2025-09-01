@@ -908,6 +908,14 @@ function nag:estimatedBurningEmbersPerSec()
   return lowerBound, upperBound
 end
 
+function nag:coeWillExpire(when)
+  return self:isAuraExpired("coe", "target", when).expired
+  and self:isAuraExpired("coefnb", "target", when).expired
+  and self:isAuraExpired("master_poisoner", "target", when).expired
+  and self:isAuraExpired("fire_breath", "target", when).expired
+  and self:isAuraExpired("lightning_breath", "target", when).expired
+end
+
 -- Buffs and debuffs
 nag:log("Initializing auras...")
 nag:addAura("coe", false, false, 1490) -- Curse of the Elements = 1490

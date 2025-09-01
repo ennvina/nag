@@ -25,15 +25,12 @@ function (ev, ...)
   local immo = nag:isAuraExpired("immo", "target", timeOfNextSpell)
   local immotep = nag:isAuraExpired("immotep", "target", timeOfNextSpell)
   local coe = nag:isAuraExpired("coe", "target", timeOfNextSpell)
-  local dsi = nag:isAuraExpired("ds:instability", "player", timeOfNextSpell)
   local shadowburn = nag:canCast("shadowburn", timeOfNextSpell)
   local chaosBolt = nag:canCast("chaos_bolt", timeOfNextSpell)
   local conflag = nag:canCast("conflagrate", timeOfNextSpell)
  
   local currentBurningEmbers = UnitPower("player", Enum.PowerType.BurningEmbers, true) * 0.1
   local futureBurningEmbers = currentBurningEmbers - nag:getCastingCost(Enum.PowerType.BurningEmbers)
-  -- @TODO define what is a good burst window for Chaos Bolt and Shadowburn using the prefer_cb_on_burst option
-  local isBurstWindow = not dsi.expired -- For now make it simple: burst window = Dark Soul: Instability
   local maxEmbersPerSecond = 0 -- Currently set to 0, because the current algorithm that uses it has several issues
 --  local maxEmbersPerSecond = select(2, nag:estimatedBurningEmbersPerSec()) -- Uncomment it when the algorithm is fixed
   local futureBurningEmbersMaxEstimated = futureBurningEmbers + maxEmbersPerSecond * (timeOfNextSpell - GetTime())
@@ -41,6 +38,11 @@ function (ev, ...)
   local willOverCapBurningEmbers = futureBurningEmbersMaxEstimated >= burningEmbersCapThreshold
   local allowedToSpendBurningEmbers = futureBurningEmbersMaxEstimated >= (aura_env.config.min_one_ember and 2 or 1)
 
+  local cbEstimatedNow = nag:estimatedChaosBoltDamage(GetTime())
+  local cbEstimatedFuture = nag:estimatedChaosBoltDamage(timeOfNextSpell)
+  aura_env.current_cb_estimation = cbEstimatedNow
+  aura_env.future_cb_estimation = cbEstimatedFuture
+  local isBurstWindow = cbEstimatedFuture >= (aura_env.config.cb_burst_threshold or 300000)
 
   if not InCombatLockdown() and not nag.casting then
     nag:decide("opener:incinerate", 29722) -- Incinerate = 29722

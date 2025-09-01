@@ -822,6 +822,16 @@ local function analyzeCLEU(self)
     end
   end
 
+  if not cleuUsed then
+    -- Even if the CLEU was apparently not used, if something changed the
+    -- power of Chaos Bolt, the event may be of interest
+    if aura_env.current_cb_estimation and
+       aura_env.current_cb_estimation ~= self:estimatedChaosBoltDamage(GetTime())
+    then
+      cleuUsed = true
+    end
+  end
+
   return cleuUsed
 end
 
@@ -916,6 +926,25 @@ function nag:coeWillExpire(when)
   and self:isAuraExpired("lightning_breath", "target", when).expired
 end
 
+function nag:estimatedChaosBoltDamage(when)
+  -- Formula based on [Anti] Chaos Bolt Estimated Damage - https://wago.io/hw_rMJJHZ/1
+
+  local baseDamage = 2490.0444
+
+  -- Ideally, we would try to detect the bonus spell damage, mastery, etc. at 'when'
+  -- But this is a very tedious task, so we're better off using the current values
+  local spdBonus = 2.5875 * GetSpellBonusDamage(6)
+  local damageMultiplier = select(7, UnitDamage("player"))
+  local masteryBonus = 1 + (GetMastery() * 3 / 100)
+  local critBonus = 1 + (GetSpellCritChance(6) / 100)
+  local magicVulnerabilityBonus = self:coeWillExpire(when) and 1 or 1.05
+  local hasCritGem = true -- Assuming Crit Gem is always here
+  local critGem = hasCritGem and 1.03 or 1
+
+  local factor = (math.floor(baseDamage + 0.5) + spdBonus) * damageMultiplier * masteryBonus * magicVulnerabilityBonus * critBonus * 2 * critGem
+  return math.floor(factor + 0.5)
+end
+
 -- Buffs and debuffs
 nag:log("Initializing auras...")
 nag:addAura("coe", false, false, 1490) -- Curse of the Elements = 1490
@@ -927,7 +956,7 @@ nag:addAura("lightning_breath", false, false, 24844) -- Lightning Breath = 24844
 nag:addAura("immo", false, true, 348) -- Immolate
 nag:addAura("immotep", false, true, 108686) -- Immolate (Fire and Brimstone)
 
-nag:addAura("ds:instability", true, true, 113858) -- Dark Soul: Instability = 113858
+--nag:addAura("ds:instability", true, true, 113858) -- Dark Soul: Instability = 113858
 
 for key, auraDef in pairs(nag.auras) do
   if type(key) == "string" then
@@ -961,7 +990,7 @@ end
 -- Cooldowns
 nag:log("Initializing cooldowns...")
 nag:addCooldown("conflag", 17962, true) -- Conflagrate
-nag:addCooldown("ds:instability", 113858) -- Dark Soul: Instability = 113858
+--nag:addCooldown("ds:instability", 113858) -- Dark Soul: Instability = 113858
 for key, cdDef in pairs(nag.cd) do
   if type(key) == "string" then
     nag:log("Cooldown:", key, "Spell ID:", cdDef.spellID)
